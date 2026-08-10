@@ -2,67 +2,41 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <base target="_top">
   <style>
     body { font-family: -apple-system, sans-serif; padding: 20px; background: #f5f5f5; max-width: 500px; margin: 0 auto; }
     h2 { text-align: center; color: #333; }
-    #micBtn { width: 100%; padding: 24px; font-size: 18px; border: none; border-radius: 12px; background: #E8412C; color: white; margin-bottom: 12px; }
-    #micBtn.listening { background: #999; }
-    textarea { width: 100%; min-height: 90px; font-size: 16px; padding: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; }
-    #sendBtn { width: 100%; padding: 16px; font-size: 18px; border: none; border-radius: 12px; background: #2C7BE5; color: white; margin-top: 10px; }
+    textarea { width: 100%; min-height: 140px; font-size: 18px; padding: 14px; border-radius: 10px; border: 1px solid #ccc; box-sizing: border-box; }
+    #sendBtn { width: 100%; padding: 18px; font-size: 18px; border: none; border-radius: 12px; background: #2C7BE5; color: white; margin-top: 12px; }
     #sendBtn:disabled { background: #ccc; }
     #status { text-align: center; margin-top: 14px; color: #555; min-height: 20px; }
+    .hint { text-align: center; font-size: 13px; color: #888; margin-top: 6px; }
   </style>
 </head>
 <body>
   <h2>📝 Notas a Tarea</h2>
-  <button id="micBtn">🎤 Tocá para dictar</button>
-  <textarea id="texto" placeholder="Acá aparece lo que dictes... también podés escribir directo"></textarea>
+  <textarea id="texto" placeholder="Escribí o tocá el micrófono del teclado para dictar..." autofocus></textarea>
+  <div class="hint">Tip: tocá el ícono 🎤 de tu teclado para dictar</div>
   <button id="sendBtn">Enviar a Asana</button>
   <div id="status"></div>
 
   <script>
-    // ⬇️ PEGÁ ACÁ TU URL /exec DE APPS SCRIPT
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw4QPf5inP2ffuj4v2VGya3BTrSHTdQonb_QB6tVSpWaLZH1UBo4-wa-u3wU-Cu7-9xWQ/exec';
 
-    const micBtn = document.getElementById('micBtn');
     const texto = document.getElementById('texto');
     const status = document.getElementById('status');
     const sendBtn = document.getElementById('sendBtn');
 
-    let recognition;
-    if ('webkitSpeechRecognition' in window) {
-      recognition = new webkitSpeechRecognition();
-      recognition.lang = 'es-AR';
-      recognition.continuous = false;
-      recognition.interimResults = false;
-
-      recognition.onresult = (e) => {
-        texto.value += (texto.value ? ' ' : '') + e.results[0][0].transcript;
-      };
-      recognition.onerror = () => { status.textContent = 'Error al escuchar, probá de nuevo.'; micBtn.classList.remove('listening'); };
-      recognition.onend = () => { micBtn.classList.remove('listening'); };
-    } else {
-      micBtn.disabled = true;
-      status.textContent = 'Reconocimiento de voz no disponible en este navegador.';
-    }
-
-    micBtn.addEventListener('click', () => {
-      if (!recognition) return;
-      micBtn.classList.add('listening');
-      status.textContent = 'Escuchando...';
-      recognition.start();
-    });
-
     sendBtn.addEventListener('click', () => {
       const val = texto.value.trim();
-      if (!val) { status.textContent = 'Dictá o escribí algo primero.'; return; }
+      if (!val) { status.textContent = 'Escribí o dictá algo primero.'; return; }
       sendBtn.disabled = true;
       status.textContent = 'Creando tarea...';
 
       fetch(APPS_SCRIPT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ texto: val })
       })
         .then(r => r.json())
@@ -70,6 +44,7 @@
           if (!res.ok) throw new Error(res.error);
           status.textContent = `✅ "${res.titulo}" creada${res.fecha ? ' — vence ' + res.fecha : ''}`;
           texto.value = '';
+          texto.focus();
           sendBtn.disabled = false;
         })
         .catch(err => {
@@ -77,6 +52,14 @@
           sendBtn.disabled = false;
         });
     });
+
+    texto.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendBtn.click();
+      }
+    });
   </script>
 </body>
 </html>
+ 
